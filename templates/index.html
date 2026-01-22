@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EstateMetric | AI Property Appraiser</title>
+    <style>
+        /* Corporate Professional Palette */
+        :root {
+            --ui-primary: #0f172a;
+            --ui-accent: #3b82f6;
+            --ui-bg: #f1f5f9;
+            --ui-card: #ffffff;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--ui-bg);
+            color: var(--ui-primary);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .main-container {
+            background: var(--ui-card);
+            max-width: 600px;
+            width: 100%;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            border: 1px solid #e2e8f0;
+        }
+
+        .header-strip {
+            background: var(--ui-primary);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header-strip h2 { font-weight: 300; letter-spacing: 1px; }
+
+        .form-content { padding: 40px; }
+
+        .control-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+        }
+
+        .span-all { grid-column: 1 / -1; }
+
+        .input-wrapper { display: flex; flex-direction: column; }
+
+        .input-wrapper label {
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: #64748b;
+            text-transform: uppercase;
+        }
+
+        .input-wrapper input {
+            padding: 12px;
+            border: 2px solid #f1f5f9;
+            border-radius: 8px;
+            background: #f8fafc;
+            font-size: 1rem;
+            transition: border-color 0.2s;
+        }
+
+        .input-wrapper input:focus {
+            outline: none;
+            border-color: var(--ui-accent);
+            background: white;
+        }
+
+        .submit-trigger {
+            margin-top: 30px;
+            width: 100%;
+            padding: 16px;
+            background: var(--ui-accent);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: opacity 0.3s;
+        }
+
+        .submit-trigger:hover { opacity: 0.9; }
+
+        /* Output Styling */
+        .report-panel {
+            margin-top: 20px;
+            padding: 25px;
+            border-radius: 12px;
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            display: none;
+            text-align: center;
+        }
+
+        .report-panel h3 { font-size: 0.8rem; color: #0369a1; margin-bottom: 5px; }
+        .val-text { font-size: 2.5rem; font-weight: 800; color: var(--ui-primary); }
+
+        .error-toast {
+            display: none;
+            margin-top: 20px;
+            padding: 15px;
+            background: #fef2f2;
+            color: #991b1b;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            border: 1px solid #fecaca;
+        }
+
+        #waitState { display: none; text-align: center; padding: 20px; font-style: italic; color: #64748b; }
+    </style>
+</head>
+<body>
+
+    <div class="main-container">
+        <header class="header-strip">
+            <h2>ESTATE<b>METRIC</b></h2>
+            <p style="font-size: 0.8rem; opacity: 0.7;">Artificial Intelligence Valuation Core</p>
+        </header>
+
+        <div class="form-content">
+            <form id="appraisalForm">
+                <div class="control-group">
+                    <div class="input-wrapper span-all">
+                        <label>Living Space (Sq Ft)</label>
+                        <input type="number" name="square_feet" value="2500" required>
+                    </div>
+
+                    <div class="input-wrapper">
+                        <label>Bedrooms</label>
+                        <input type="number" name="bedrooms" value="4" required>
+                    </div>
+
+                    <div class="input-wrapper">
+                        <label>Bathrooms</label>
+                        <input type="number" name="bathrooms" step="0.5" value="3" required>
+                    </div>
+
+                    <div class="input-wrapper">
+                        <label>Property Age</label>
+                        <input type="number" name="age_years" value="5" required>
+                    </div>
+
+                    <div class="input-wrapper">
+                        <label>Garage Units</label>
+                        <input type="number" name="garage_spaces" value="2" required>
+                    </div>
+
+                    <div class="input-wrapper span-all">
+                        <label>Neighborhood Quality (1-10)</label>
+                        <input type="number" name="location_score" value="7" required>
+                    </div>
+                </div>
+
+                <button type="submit" class="submit-trigger">CALCULATE FAIR VALUE</button>
+            </form>
+
+            <div id="waitState">Analyzing local market trends...</div>
+
+            <div id="resultsView" class="report-panel">
+                <h3>Estimated Asset Value</h3>
+                <div class="val-text" id="finalPrice">$0.00</div>
+            </div>
+
+            <div id="alertView" class="error-toast"></div>
+        </div>
+    </div>
+
+    <script>
+        const entryForm = document.getElementById('appraisalForm');
+        const outcomeBox = document.getElementById('resultsView');
+        const alertBox = document.getElementById('alertView');
+        const pendingBox = document.getElementById('waitState');
+
+        entryForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            // Toggle visibility
+            outcomeBox.style.display = 'none';
+            alertBox.style.display = 'none';
+            pendingBox.style.display = 'block';
+
+            // Extract data using FormData (Different structure from previous code)
+            const dataCapture = new FormData(entryForm);
+            const bodyPayload = Object.fromEntries(dataCapture.entries());
+
+            try {
+                const apiResponse = await fetch('/estimate-price', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(bodyPayload)
+                });
+
+                const parsedData = await apiResponse.json();
+                pendingBox.style.display = 'none';
+
+                if (parsedData.success) {
+                    const amount = parsedData.results.estimated_price;
+                    document.getElementById('finalPrice').innerText = 
+                        new Intl.NumberFormat('en-US', { 
+                            style: 'currency', 
+                            currency: 'USD',
+                            maximumFractionDigits: 0 
+                        }).format(amount);
+                    
+                    outcomeBox.style.display = 'block';
+                } else {
+                    alertBox.innerText = parsedData.reason || "Validation failed.";
+                    alertBox.style.display = 'block';
+                }
+            } catch (err) {
+                pendingBox.style.display = 'none';
+                alertBox.innerText = "Connection lost. Please check the server.";
+                alertBox.style.display = 'block';
+            }
+        });
+    </script>
+</body>
+</html>
